@@ -1,0 +1,27 @@
+# Claude Code のローカル設定 (ユーザ名入りパスを含むため公開しない)
+.claude/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# 生成物・実行時の出力
+*.png
+*.bmp
+*.apk
+*.so
+*.bin
+calendar.png
+events.json
+cal_page.html
+cal_*.png
+test_*.png
+
+# 逆コンパイル/解析の作業物は絶対に含めない (他社著作物)
+blutter_out/
+work_apk/
+work2/
+ext/
+*.dex
