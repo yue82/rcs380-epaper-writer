@@ -19,7 +19,7 @@ WEEKJP = ["月", "火", "水", "木", "金", "土", "日"]
 
 DAY_START, DAY_END = 9, 19           # 表示する時間帯
 SPLIT = (DAY_START + DAY_END) // 2    # 左右カラムの境界 = 14時
-HDR_H = 30
+HDR_H = 24
 ALLDAY_H = 16                         # 終日予定を出す帯の高さ (終日予定がある日のみ)
 
 
@@ -75,7 +75,7 @@ def draw_column(d, evs, col_x, col_w, start_h, end_h, body_top):
     ev_x0 = col_x + label_w
     ev_x1 = col_x + col_w - 3
     span = end_h - start_h
-    ppx = (H - body_top - 4) / span   # px per hour
+    ppx = (H - body_top - 12) / span  # px per hour (下端に目盛りラベル分の余白)
     f_hour = fnt(False, 12)
     f_time = fnt(False, 11)
     f_ev = fnt(False, 13)
@@ -103,11 +103,14 @@ def draw_column(d, evs, col_x, col_w, start_h, end_h, body_top):
         bx1 = int(ev_x0 + (slot + 1) * w_each) - 1
         d.rectangle([bx0, y0 + 1, bx1, y1 - 1], outline=0, width=1)
         d.rectangle([bx0, y0 + 1, bx0 + 3, y1 - 1], fill=0)  # 左アクセント帯
+        # 開始時刻の直後に同じ行でタイトルを書く (短い予定でも重ならないよう1行)
         st = e["_t"]
-        tstr = f"{st.hour:02d}:{st.minute:02d}"
-        d.text((bx0 + 7, y0 + 2), tstr, font=f_time, fill=0)
-        title = ellipsize(d, e["title"], f_ev, bx1 - bx0 - 10)
-        d.text((bx0 + 7, y0 + 14), title, font=f_ev, fill=0)
+        tstr = f"{st.hour:02d}:{st.minute:02d} "
+        tx0 = bx0 + 7
+        d.text((tx0, y0 + 3), tstr, font=f_time, fill=0)
+        tw = d.textlength(tstr, font=f_time)
+        title = ellipsize(d, e["title"], f_ev, bx1 - (tx0 + tw) - 3)
+        d.text((tx0 + tw, y0 + 2), title, font=f_ev, fill=0)
 
 
 def render_day(events, today, now_str):
@@ -116,11 +119,11 @@ def render_day(events, today, now_str):
 
     # ヘッダ帯
     d.rectangle([0, 0, W, HDR_H], fill=0)
-    d.text((6, 4), f"{today.month}/{today.day}({WEEKJP[today.weekday()]})",
+    d.text((6, -4), f"{today.month}/{today.day}({WEEKJP[today.weekday()]})",
            font=fnt(True, 20), fill=255)
     upd = f"更新 {now_str}"
     fu = fnt(False, 13)
-    d.text((W - 6 - d.textlength(upd, font=fu), 9), upd, font=fu, fill=255)
+    d.text((W - 6 - d.textlength(upd, font=fu), 4), upd, font=fu, fill=255)
 
     # 当日の時間帯予定を左右カラム (境界 SPLIT 時) に振り分け
     allday = []
@@ -138,15 +141,15 @@ def render_day(events, today, now_str):
         (left if st.hour < SPLIT else right).append(rec)
 
     # 終日予定があればヘッダ直下に帯を1本追加し、その分だけ本体を下げる
-    body_top = HDR_H + 2
+    body_top = HDR_H + 4
     if allday:
         band_y0, band_y1 = HDR_H + 1, HDR_H + 1 + ALLDAY_H
         d.rectangle([0, band_y0, W, band_y1], outline=0, width=1)
         f_ad = fnt(True, 12)
         label = "終日: " + " / ".join(e["title"] for e in allday)
         label = ellipsize(d, label, f_ad, W - 8)
-        d.text((4, band_y0 + 1), label, font=f_ad, fill=0)
-        body_top = band_y1 + 2
+        d.text((4, band_y0 - 1), label, font=f_ad, fill=0)
+        body_top = band_y1 + 4
 
     draw_column(d, left, 0, W // 2, DAY_START, SPLIT, body_top)
     d.line([(W // 2, body_top), (W // 2, H)], fill=0, width=1)  # 中央仕切り
