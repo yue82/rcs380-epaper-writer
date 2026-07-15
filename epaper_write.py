@@ -59,13 +59,22 @@ def build_plane(png, black_is_one, mirror, flip):
     return bytes(data)
 
 
-def tx(tag, apdu_hex, label, to=3.0):
-    r = tag.transceive(bytes.fromhex(apdu_hex), timeout=to)
-    sw = r[-2:].hex()
-    head = apdu_hex if len(apdu_hex) <= 24 else apdu_hex[:24] + ".."
-    print(f"  {label:20} {head} -> SW={sw}"
-          + (f" data={r[:-2].hex()}" if len(r) > 2 else ""))
-    return sw
+def tx(tag, apdu_hex, label, to=3.0, tries=3):
+    # NFC の通信は一時的に応答を取りこぼすことがあるので、数回まで再送する。
+    last = None
+    for attempt in range(tries):
+        try:
+            r = tag.transceive(bytes.fromhex(apdu_hex), timeout=to)
+            sw = r[-2:].hex()
+            head = apdu_hex if len(apdu_hex) <= 24 else apdu_hex[:24] + ".."
+            print(f"  {label:20} {head} -> SW={sw}"
+                  + (f" data={r[:-2].hex()}" if len(r) > 2 else ""))
+            return sw
+        except Exception as e:
+            last = e
+            if attempt < tries - 1:
+                time.sleep(0.3)
+    raise last
 
 
 def write_image(tag, plane):
@@ -88,6 +97,9 @@ def write_image(tag, plane):
             return False
         off += len(chunk)
         idx += 1
+        # チャンク間ペーシング。無停止で連射するとコントローラが取りこぼし、
+        # 途中のチャンクで transceive がタイムアウトも効かず固まることがある。
+        time.sleep(0.03)
     print(f"  {idx} チャンク送信")
     sw = tx(tag, "F0D4850000", "REFRESH")
     ok = sw in ("9000", "009000")
